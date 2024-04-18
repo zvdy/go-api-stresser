@@ -1,0 +1,38 @@
+name: Go CI/CD
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches: [ main ]
+
+  # Trigger on pull request to main branch
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Build and test job
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'  # Replace with desired Go version
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.mod') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
+
+# TODO: Unit/Integration tests
