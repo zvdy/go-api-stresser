@@ -8,7 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
 	"time"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 // HttpRequest struct to store request parameters
@@ -106,22 +109,37 @@ func main() {
 	// Perform stress test (optional)
 	if *iterations > 1 {
 		fmt.Println("Running stress test...")
-		for i := 0; i < *iterations; i++ {
-			go func() {
-				_, err := client.Do(req)
-				if err != nil {
-					fmt.Println("Error in stress test iteration:", err)
-				}
-			}()
-		}
-		time.Sleep(time.Duration(*duration) * time.Second)
-	}
-}
 
-func init() {
-	flag.Usage = func() {
-		fmt.Println("Usage: api-tester [options]")
-		fmt.Println("Flags:")
-		flag.PrintDefaults()
+		startTime := time.Now()
+		totalTime := time.Duration(*duration) * time.Second
+
+		// Create a new progress bar with a mutex for synchronized updates
+		bar := progressbar.NewOptions(
+			100, // Set total progress to 100 for percentage representation
+			progressbar.OptionSetWriter(os.Stdout),
+			progressbar.OptionSetDescription("[Performing Stress Test]"),
+			progressbar.OptionSetWidth(30),
+		)
+		var barMutex sync.Mutex
+
+		go func() {
+			for {
+				elapsed := time.Since(startTime)
+				progress := int(float64(elapsed) / float64(totalTime) * 100)
+
+				barMutex.Lock()
+				bar.Set(progress) // Update progress bar based on elapsed time
+				barMutex.Unlock()
+
+				// Check if duration has elapsed
+				if elapsed >= totalTime {
+					break
+				}
+				time.Sleep(time.Second) // Sleep for a short duration to avoid busy waiting
+			}
+			bar.Finish()
+		}()
+
+		time.Sleep(totalTime) // Wait for the entire duration
 	}
 }
